@@ -8,5 +8,5 @@ env = Environment(
 
 
 def format(viz, **kwargs):
-    template = env.get_template('{}.html'.format(viz))
+    template = env.get_template(f'{viz}.html')
     return template.render(viz=viz, **kwargs)

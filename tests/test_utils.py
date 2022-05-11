@@ -39,7 +39,7 @@ def test_df_properties(df):
 def test_df_no_properties(df_no_properties):
     features = df_to_geojson(df_no_properties)[
         'features']
-    assert tuple(features[0]['properties'].keys()) == ()
+    assert not tuple(features[0]['properties'].keys())
 
 
 def test_df_geojson_file(df):

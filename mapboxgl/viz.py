@@ -39,11 +39,11 @@ class VectorMixin(object):
     def generate_vector_numeric_map(self, numeric_property):
         """Generate stops array for use with match expression in mapbox template"""
         vector_stops = []
-        
-        function_type = getattr(self, '{}_function_type'.format(numeric_property))
-        lookup_property = getattr(self, '{}_property'.format(numeric_property))
-        numeric_stops = getattr(self, '{}_stops'.format(numeric_property))
-        default = getattr(self, '{}_default'.format(numeric_property))
+
+        function_type = getattr(self, f'{numeric_property}_function_type')
+        lookup_property = getattr(self, f'{numeric_property}_property')
+        numeric_stops = getattr(self, f'{numeric_property}_stops')
+        default = getattr(self, f'{numeric_property}_default')
 
         if function_type == 'match':
             match_width = numeric_stops
@@ -56,7 +56,7 @@ class VectorMixin(object):
 
             # map value to JSON feature using the numeric property
             value = numeric_map(row[lookup_property], numeric_stops, default)
-            
+
             # link to vector feature using data_join_property (from JSON object)
             vector_stops.append([row[self.data_join_property], value])
 
@@ -66,7 +66,7 @@ class VectorMixin(object):
         """Determines if features are defined as vector source based on MapViz arguments."""
 
         if self.vector_url is not None and self.vector_layer_name is not None:
-            self.template = 'vector_' + self.template
+            self.template = f'vector_{self.template}'
             self.vector_source = True
         else:
             self.vector_source = False
@@ -266,11 +266,7 @@ class MapViz(object):
     def create_html(self, filename=None):
         """Create a circle visual from a geojson data source"""
         
-        if isinstance(self.style, str):
-            style = "'{}'".format(self.style)
-        else:
-            style = self.style
-        
+        style = f"'{self.style}'" if isinstance(self.style, str) else self.style
         options = dict(
             gl_js_version=GL_JS_VERSION,
             accessToken=self.access_token,
@@ -338,7 +334,7 @@ class MapViz(object):
             options.update(labelProperty=None)
         else:
             options.update(labelProperty='{' + self.label_property + '}')
-        
+
         options.update(
             labelColor=self.label_color,
             labelSize=self.label_size,
@@ -348,13 +344,12 @@ class MapViz(object):
 
         self.add_unique_template_variables(options)
 
-        if filename:
-            html = templates.format(self.template, **options)
-            with codecs.open(filename, "w", "utf-8-sig") as f:
-                f.write(html)
-            return None
-        else:
+        if not filename:
             return templates.format(self.template, **options)
+        html = templates.format(self.template, **options)
+        with codecs.open(filename, "w", "utf-8-sig") as f:
+            f.write(html)
+        return None
 
 
 class CircleViz(VectorMixin, MapViz):
@@ -541,9 +536,9 @@ class HeatmapViz(VectorMixin, MapViz):
     def generate_vector_numeric_map(self, numeric_property):
         """Generate stops array for use with match expression in mapbox template"""
         vector_stops = []
-        
-        lookup_property = getattr(self, '{}_property'.format(numeric_property))
-        numeric_stops = getattr(self, '{}_stops'.format(numeric_property))
+
+        lookup_property = getattr(self, f'{numeric_property}_property')
+        numeric_stops = getattr(self, f'{numeric_property}_stops')
 
         # if join data specified as filename or URL, parse JSON to list of Python dicts
         if type(self.data) == str:
@@ -553,7 +548,7 @@ class HeatmapViz(VectorMixin, MapViz):
 
             # map value to JSON feature using the numeric property
             value = numeric_map(row[lookup_property], numeric_stops, 0)
-            
+
             # link to vector feature using data_join_property (from JSON object)
             vector_stops.append([row[self.data_join_property], value])
 
@@ -692,12 +687,8 @@ class ChoroplethViz(VectorMixin, MapViz):
             self.line_dash_array = [0.5, 4]
         elif self.line_stroke in ["dash dot", "-."]:
             self.line_dash_array = [6, 4, 0.5, 4]
-        elif self.line_stroke in ["solid", "-"]:
-            self.line_dash_array = [1, 0]
         else:
-            # default to solid line
             self.line_dash_array = [1, 0]
-
         # check if choropleth map should include 3-D extrusion
         self.extrude = all([bool(self.height_property), bool(self.height_stops)])
 
@@ -726,7 +717,7 @@ class ChoroplethViz(VectorMixin, MapViz):
         # vector-based choropleth map variables
         if self.vector_source:
             options.update(vectorColorStops=self.generate_vector_color_map())
-            
+
             if self.extrude:
                 options.update(vectorHeightStops=self.generate_vector_numeric_map('height'))
 
@@ -801,12 +792,15 @@ class RasterTilesViz(MapViz):
 
     def add_unique_template_variables(self, options):
         """Update map template variables specific to a raster visual"""
-        options.update(dict(
-            tiles_url=self.tiles_url,
-            tiles_size=self.tiles_size,
-            tiles_minzoom=self.tiles_minzoom,
-            tiles_maxzoom=self.tiles_maxzoom,
-            tiles_bounds=self.tiles_bounds if self.tiles_bounds else 'undefined'))
+        options.update(
+            dict(
+                tiles_url=self.tiles_url,
+                tiles_size=self.tiles_size,
+                tiles_minzoom=self.tiles_minzoom,
+                tiles_maxzoom=self.tiles_maxzoom,
+                tiles_bounds=self.tiles_bounds or 'undefined',
+            )
+        )
 
 
 class LinestringViz(VectorMixin, MapViz):
@@ -872,12 +866,8 @@ class LinestringViz(VectorMixin, MapViz):
             self.line_dash_array = [0.5, 4]
         elif self.line_stroke in ["dash dot", "-."]:
             self.line_dash_array = [6, 4, 0.5, 4]
-        elif self.line_stroke in ["solid", "-"]:
-            self.line_dash_array = [1, 0]
         else:
-            # default to solid line
             self.line_dash_array = [1, 0]
-
         # common variables for vector and geojson-based linestring maps
         options.update(dict(
             colorStops=self.color_stops,
@@ -903,7 +893,7 @@ class LinestringViz(VectorMixin, MapViz):
 
             if self.color_property:
                 options.update(vectorColorStops=self.generate_vector_color_map())
-        
+
             if self.line_width_property:
                 options.update(vectorWidthStops=self.generate_vector_numeric_map('line_width'))
 
